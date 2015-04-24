@@ -12,7 +12,8 @@
 #define	 COMPUTE_LOAD "compute.load"
 
 #define  MASTER		0
-#define  MULT_CONSTANT	10
+#define  MULT_CONSTANT	100000	
+#define  COMPUTE_CONSTANT	10000000
 #define CONFIG_FILE_NAME "micro.input"
 #define NVARS 10
 
@@ -26,11 +27,25 @@ float mysum, sum;
 /*config param*/
 int restart;
 
-long array_size;
-long init_load;
-long recompute_load;
-long compute_load;
+unsigned long array_size;
+unsigned long init_load;
+unsigned long recompute_load;
+unsigned long compute_load;
 float *vars[NVARS];
+
+void compute_unit(unsigned long amp){
+	int temp;
+	unsigned long i,j;
+	for(j=0; j < amp; j++){
+		for(i=0; i < COMPUTE_CONSTANT ; i++){
+			temp += 100;
+			temp -= 100;	
+			asm("");
+		}
+	}
+}
+
+
 
 void hpc_init(array_size){
 
@@ -56,42 +71,25 @@ void hpc_init(array_size){
 	xeon = (float *)alloc("xeon",sizeof(float) * array_size,0,taskid);
 	vars[9] = xeon;
 
-	int i;
-	int temp;
-	for(i=1; i < init_load ; i++){
-		temp += 100;
-		temp -= 100;	
-		asm("");
-	}
 
+	compute_unit(init_load);
 	
 }
 
 void hpc_recompute(){
-	int i,j;
-	int temp;
-		for(j=0;j<NVARS;j++){
-			for(i=1; i < recompute_load ; i++){
-				temp += 100;
-				temp -= 100;	
-				asm("");
-			}
-			
-			access_var(vars[j],array_size);
+	int i;
+		for(i=0;i<NVARS;i++){
+			compute_unit(recompute_load);	
+			access_var(vars[i],array_size);
 		}
 	
 }
 
 void hpc_iterations(){
-	int i,j;
-	int temp;
-	for(j=1; j < compute_load ; j++){
-		for(i=1; i < compute_load ; i++){
-			temp += 100;
-			temp -= 100;	
-			asm("");
-		}
-	}
+	unsigned long i,j;
+
+	compute_unit(compute_load);	
+
 	//increment arrays
 	for(i=0;i<NVARS;i++){
 		for(j=0;j<array_size;j++){
@@ -123,11 +121,11 @@ void read_config(){
         }else if(!strncmp(ARRAY_SIZE,varname,sizeof(varname))){
 			array_size = atoi(varvalue) * MULT_CONSTANT; 
         }else if(!strncmp(INIT_LOAD,varname,sizeof(varname))){
-			init_load = atoi(varvalue) * MULT_CONSTANT;
+			init_load = atoi(varvalue);
         }else if(!strncmp(RECOMPUTE_LOAD,varname,sizeof(varname))){
-			recompute_load = atoi(varvalue) * MULT_CONSTANT;
+			recompute_load = atoi(varvalue);
         }else if(!strncmp(COMPUTE_LOAD,varname,sizeof(varname))){
-			compute_load = atoi(varvalue) * MULT_CONSTANT;
+			compute_load = atoi(varvalue);
         }else {
             printf("unknown varibale %s . please check the config\n", varname);
             exit(1);

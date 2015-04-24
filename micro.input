@@ -1,4 +1,4 @@
-array.size = 1
-init.load = 1
-recompute.load = 1
-compute.load = 2
+array.size = 10
+init.load = 10
+recompute.load = 10
+compute.load = 1000
