@@ -10,3 +10,4 @@ clean:
 	rm -rf micro *.o
 
 restartclean:
+	rm -rf /mnt/ramdisk/mmap*

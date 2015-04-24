@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "access.h"
+#include "phoenix.h"
 
 #define  ARRAY_SIZE	"array.size"
 #define	 INIT_LOAD "init.load"
@@ -11,12 +12,13 @@
 #define	 COMPUTE_LOAD "compute.load"
 
 #define  MASTER		0
-#define  MULT_CONSTANT	100000
+#define  MULT_CONSTANT	10
 #define CONFIG_FILE_NAME "micro.input"
 #define NVARS 10
 
 float update(int myoffset, int chunk, int myid);
 
+int   numtasks, taskid,ierror; 
 //checkpointable vars - 10
 float *alpha,*beta,*phi,*zion,*kappa,*omega,*gamma1,*theta,*zeeta,*xeon;
 float mysum, sum;
@@ -33,25 +35,25 @@ float *vars[NVARS];
 void hpc_init(array_size){
 
 	//varaible sre initialized by the phonix
-	alpha = (float *)malloc(sizeof(float) * array_size);
+	alpha = (float *)alloc("alpha",sizeof(float) * array_size,0,taskid);
 	vars[0] = alpha;
-	beta = (float *)malloc(sizeof(float) * array_size);
+	beta = (float *)alloc("beta",sizeof(float) * array_size,0,taskid);
 	vars[1] = beta;
-	phi = (float *)malloc(sizeof(float) * array_size);
+	phi = (float *)alloc("phi",sizeof(float) * array_size,0,taskid);
 	vars[2] = phi;
-	zion = (float *)malloc(sizeof(float) * array_size);
+	zion = (float *)alloc("zion",sizeof(float) * array_size,0,taskid);
 	vars[3] = zion;
-	kappa = (float *)malloc(sizeof(float) * array_size);
+	kappa = (float *)alloc("kappa",sizeof(float) * array_size,0,taskid);
 	vars[4] = kappa;
-	omega = (float *)malloc(sizeof(float) * array_size);
+	omega = (float *)alloc("omega",sizeof(float) * array_size,0,taskid);
 	vars[5] = omega;
-	gamma1 = (float *)malloc(sizeof(float) * array_size);
+	gamma1 = (float *)alloc("gamma1",sizeof(float) * array_size,0,taskid);
 	vars[6] = gamma1;
-	theta = (float *)malloc(sizeof(float) * array_size);
+	theta = (float *)alloc("theta",sizeof(float) * array_size,0,taskid);
 	vars[7] = theta;
-	zeeta = (float *)malloc(sizeof(float) * array_size);
+	zeeta = (float *)alloc("zeeta",sizeof(float) * array_size,0,taskid);
 	vars[8] = zeeta;
-	xeon = (float *)malloc(sizeof(float) * array_size);
+	xeon = (float *)alloc("xeon",sizeof(float) * array_size,0,taskid);
 	vars[9] = xeon;
 
 	int i;
@@ -90,6 +92,17 @@ void hpc_iterations(){
 			asm("");
 		}
 	}
+	//increment arrays
+	for(i=0;i<NVARS;i++){
+		for(j=0;j<array_size;j++){
+			if(vars[i][j]==0){
+				vars[i][j] = taskid*10;
+			}else{
+				vars[i][j] += 1.0;	
+			}
+		}
+	}
+
 	mysum = 10;
 }
 
@@ -127,7 +140,6 @@ void read_config(){
 
 int main (int argc, char *argv[]){
 
-	int   numtasks, taskid,ierror; 
 	int i;
 	MPI_Status status;
 
@@ -140,16 +152,19 @@ int main (int argc, char *argv[]){
 	}
 
 	MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
+	init(taskid,numtasks);
 	read_config();
-	printf ("MPI task %d has started...\n", taskid);
-
-	
 
 	hpc_init(array_size);
 	hpc_recompute();
 	hpc_iterations();
+	chkpt_all(taskid);
 
+    MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Reduce(&mysum, &sum, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+	//sample printing
+	printf("[%d] : %f , %f , %f , %f , %f , %f , %f , %f , %f , %f \n",taskid,vars[0][1],vars[1][1],vars[2][1],vars[3][1],vars[4][1],
+																			  vars[5][1],vars[6][1],vars[7][1],vars[8][1],vars[9][1]);
 	if(taskid == MASTER){
 		printf("*** Final sum= %e ***\n",sum);
 	}
